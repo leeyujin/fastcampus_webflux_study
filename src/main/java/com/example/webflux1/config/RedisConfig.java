@@ -31,17 +31,20 @@ public class RedisConfig implements ApplicationListener<ApplicationReadyEvent> {
                 .subscribe();
     }
 
-    @Bean
-    public ReactiveRedisTemplate<String, User> reactiveRedisUserTemplate(ReactiveRedisConnectionFactory connectionFactory){
-        var objectMapper = new ObjectMapper()
+    private ObjectMapper objectMapper() {
+        return new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .registerModule(new JavaTimeModule())
                 .disable(SerializationFeature.WRITE_DATE_KEYS_AS_TIMESTAMPS);
+    }
 
-        Jackson2JsonRedisSerializer<User> jsonRedisSerializer = new Jackson2JsonRedisSerializer<>(objectMapper, User.class);
+    private <T> ReactiveRedisTemplate<String, T> createReactiveRedisTemplate(
+            ReactiveRedisConnectionFactory connectionFactory, Class<T> type) {
 
-        RedisSerializationContext<String, User> serializationContext = RedisSerializationContext
-                .<String, User>newSerializationContext()
+        Jackson2JsonRedisSerializer<T> jsonRedisSerializer = new Jackson2JsonRedisSerializer<>(objectMapper(), type);
+
+        RedisSerializationContext<String, T> serializationContext = RedisSerializationContext
+                .<String, T>newSerializationContext()
                 .key(RedisSerializer.string())
                 .value(jsonRedisSerializer)
                 .hashKey(RedisSerializer.string())
@@ -50,4 +53,10 @@ public class RedisConfig implements ApplicationListener<ApplicationReadyEvent> {
 
         return new ReactiveRedisTemplate<>(connectionFactory, serializationContext);
     }
+
+    @Bean
+    public ReactiveRedisTemplate<String, User> reactiveRedisUserTemplate(ReactiveRedisConnectionFactory connectionFactory) {
+        return createReactiveRedisTemplate(connectionFactory, User.class);
+    }
+
 }
